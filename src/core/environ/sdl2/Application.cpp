@@ -470,6 +470,62 @@ const tjs_char* SECodeToMessage( unsigned int code ) {
 }
 
 #endif
+
+//---------------------------------------------------------------------------
+// Appreciation gallery unlock
+//---------------------------------------------------------------------------
+// This build opens the appreciation gallery on a brand-new save: the title
+// entry is normally shown only after the game has been cleared (global flag 1)
+// and the CG album / recollection screens list an item only once its own flag
+// is set.
+//
+// The patch rebinds the two TJS helpers those screens read. It runs after the
+// startup script has defined every game class and before the first scene is
+// constructed, and it changes nothing on disk: the save data and the imported
+// game data (data.xp3 or the extracted data/ tree) are left untouched.
+// ChkGlobalFlagOn / ChkReadFlag keep their original behaviour on purpose: the
+// prologue branches on ChkGlobalFlagOn(1), and ChkReadFlag drives skipping.
+//---------------------------------------------------------------------------
+static const char *TVPAppreciationUnlockScript =
+	"(function(){\n"
+	"    var unlockCg = function(id){ return true; };\n"
+	"    var unlockGlobal = function(id){ return true; };\n"
+	"\n"
+	"    // TJS2 globals are ordinary properties of the global object, so\n"
+	"    // re-binding them redirects every later call site.\n"
+	"    global.ChkCgFlag = unlockCg;\n"
+	"    global.ChkGlobalFlag = unlockGlobal;\n"
+	"\n"
+	"    if(ChkCgFlag(1) !== true || ChkGlobalFlag(1) !== true)\n"
+	"        throw \"appreciation unlock patch did not take effect\";\n"
+	"})();\n";
+
+static void TVPApplyAppreciationUnlock()
+{
+	tjs_string script;
+	if(!TVPUtf8ToUtf16(script, std::string(TVPAppreciationUnlockScript)))
+	{
+		TVPAddImportantLog(TJS_W("(error) Appreciation unlock patch: script encoding failed."));
+		return;
+	}
+
+	try
+	{
+		TVPExecuteScript(ttstr(script), ttstr(TJS_W("appreciation_unlock.tjs")), 0, NULL);
+		TVPAddImportantLog(TJS_W("(info) Appreciation unlock patch applied."));
+	}
+	catch(const Exception &e)
+	{
+		ttstr message(TJS_W("(error) Appreciation unlock patch failed: "));
+		message += e.what();
+		TVPAddImportantLog(message);
+	}
+	catch(...)
+	{
+		TVPAddImportantLog(TJS_W("(error) Appreciation unlock patch failed."));
+	}
+}
+
 bool tTVPApplication::StartApplication( int argc, tjs_char* argv[] ) {
 	// _set_se_translator(se_translator_function);
 
@@ -606,6 +662,10 @@ bool tTVPApplication::StartApplication( int argc, tjs_char* argv[] ) {
 #if defined(__OHOS__)
 		OHOSAppDiag("StartApplication: startup script done");
 #endif
+
+		// Applied after the startup script: the gallery helpers exist by now
+		// and no scene has been built yet.
+		if(TVPProjectDirSelected) TVPApplyAppreciationUnlock();
 
 
 #if 0
