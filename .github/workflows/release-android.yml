@@ -252,9 +252,11 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_androidVersionName: ${{ steps.release.outputs.version-name }}
           ORG_GRADLE_PROJECT_androidVersionCode: ${{ steps.release.outputs.version-code }}
-          # Publishing repo as the in-app downloader's default base URL
-          # (bootstrap falls back to asking the user when empty).
-          ORG_GRADLE_PROJECT_defaultBaseUrl: https://github.com/${{ github.repository }}/releases/latest/download/
+          # In-app downloader's default base URL. This fork publishes only the
+          # APK, so point the bootstrap at the upstream data release that
+          # carries data-assets.json (the field stays user-overridable, and an
+          # empty value makes the bootstrap ask for an address instead).
+          ORG_GRADLE_PROJECT_defaultBaseUrl: https://github.com/shuimo0413/yosuga-no-sora-remake/releases/download/data-v3/
         run: |
           set -euo pipefail
           chmod +x gradlew
@@ -312,6 +314,15 @@ jobs:
 
           echo "asset-directory=$asset_dir" >> "$GITHUB_OUTPUT"
           ls -lh "$asset_dir"
+
+      # The release below is the canonical download; the artifact keeps the
+      # same APK retrievable from the run itself (gh run download).
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-arm64-${{ steps.release.outputs.tag }}
+          path: ${{ steps.package.outputs.asset-directory }}/*
+          if-no-files-found: error
 
       - name: Create or update GitHub Release
         shell: bash
