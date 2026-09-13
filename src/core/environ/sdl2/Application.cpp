@@ -511,7 +511,11 @@ static void TVPApplyAppreciationUnlock()
 
 	try
 	{
-		TVPExecuteScript(ttstr(script), ttstr(TJS_W("appreciation_unlock.tjs")), 0, NULL);
+		// The trailing cast picks the (content, name, lineofs, result)
+		// overload: a plain NULL would also bind to the context parameter of
+		// the five-argument overload and make the call ambiguous.
+		TVPExecuteScript(ttstr(script), ttstr(TJS_W("appreciation_unlock.tjs")),
+			0, (tTJSVariant *)NULL);
 		TVPAddImportantLog(TJS_W("(info) Appreciation unlock patch applied."));
 	}
 	catch(const Exception &e)
